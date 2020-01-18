@@ -1,0 +1,4 @@
+#!/bin/sh
+
+shift
+exec "$@" > forkserver.out 2> forkserver.err
