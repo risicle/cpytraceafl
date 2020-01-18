@@ -1,6 +1,6 @@
 from cpytraceafl.rewriter import install_rewriter
 
-install_rewriter()
+install_rewriter(selector=lambda code: "simplejson" in code.co_filename)
 
 import simplejson
 
