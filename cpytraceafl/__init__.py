@@ -1,4 +1,5 @@
 import os
+import signal
 import struct
 import sys
 
@@ -29,6 +30,11 @@ def attach_afl_map_shm(shm_env_var=None):
 
 def cheap_excepthook(*a, **k):
     sys.exit(99)
+
+
+def crashing_excepthook(exc_class, exc, traceback):
+    "An excepthook which will raise a genuine segfault, easy for AFL to detect as a 'crash'"
+    ctypes.memset(0, 1, 1)
 
 
 def forkserver(forksrv_read_fd=None, forksrv_write_fd=None):
