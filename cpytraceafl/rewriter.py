@@ -68,7 +68,12 @@ def rewrite(dis, random_class, code, selector=True):
         code.co_varnames,
         code.co_filename,
         code.co_name,
-        1,
+        # construct co_firstlineno - this value effectively gets used as the "base hash" for
+        # the identity of instrumentation points in the code object. we mix in the original
+        # co_filename and co_firstlineno as these are not included in PyCodeObject's hash
+        # implementation and we want to reduce the possibility of aliases as much as possible.
+        # note the use of hash() here makes use of PYTHONHASHSEED critical when fuzzing
+        abs(hash(code) ^ hash(code.co_filename) ^ code.co_firstlineno) & 0xffff,
         lnotab,
         code.co_freevars,
         code.co_cellvars,
