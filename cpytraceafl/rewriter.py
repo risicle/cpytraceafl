@@ -1,5 +1,10 @@
 INST_RATIO_PRECISION_BITS = 7
 
+
+# here we rely on injected dependencies, the `dis` module and the class `ramdom.Random`,
+# because of the risk of recursion during import. we avoid module-level imports so we can
+# ensure we're only importing whatever's strictly necessary before the rewriter has been
+# installed
 def rewrite(dis, random_class, code, selector=True):
     code_type = type(code)
     consts = tuple(
@@ -22,6 +27,12 @@ def rewrite(dis, random_class, code, selector=True):
         )
 
     if inst_sel:
+        # inspired by Ned Batchelder's "wicked hack" detailed at
+        # https://nedbatchelder.com/blog/200804/wicked_hack_python_bytecode_tracing.html, we
+        # abuse the code object's "lnotab" or line-number table to trick cpython's line-by-line
+        # tracing mechanism to call a tracehook in places we choose. in this case, we decide
+        # to denote these "new lines" as starting at the beginning of "basic blocks", or at
+        # least a rough approximation of basic blocks as far as they apply to the cpython vm.
         delayed_flag_opcodes = tuple(dis.opmap[m] for m in (
             "YIELD_VALUE",
             "YIELD_FROM",
@@ -54,6 +65,7 @@ def rewrite(dis, random_class, code, selector=True):
             )
             last_offset += offset_delta
     else:
+        # a blank lnotab signals to the trace hook that we don't want line tracing here
         lnotab = b""
 
     return code_type(
@@ -80,22 +92,55 @@ def rewrite(dis, random_class, code, selector=True):
     )
 
 
-def install_rewriter(builtins_module=None, selector=None):
+def install_rewriter(selector=None):
+    """
+        Installs instrumenting bytecode rewriter.
+
+        Monkeypatches builtins.compile and importlib's .pyc file reader with wrapper which will
+        rewrite code object's line number information in a way suitable for basic block
+        tracing.
+
+        This should be called as early as possible in a target program - any imports performed
+        before the rewriter is installed will cause their modules to not be properly rewritten
+        and so not properly traced.
+
+        `selector` can be used to control which code objects are instrumented and to what degree. This can be a callable which takes a single argument, `code`, the code object
+        about to be rewritten. This callable should return:
+         - True, to indicate the code object should be fully instrumented for tracing.
+         - False, indicating the code object should receive no instrumentation and tracing
+           should not happen here.
+         - A numeric value indicating the approximate percentage of potential locations that
+           should be instrumented for this code. This equates approximately to AFL_INST_RATIO.
+
+        Alternatively `selector` can be set to one of the above values to act on all code
+        objects with that behaviour equally.
+
+        The default, None, will attempt to read the environment variable AFL_INST_RATIO and
+        apply that behaviour to all code. Failing that, it'll instrument everything 100%.
+    """
+    # nested imports rather than module level imports to be as precise as possible about what
+    # is needed for each function to operate. a module unnecessarily imported before the
+    # rewriter has been installed is another module that will have inaccurate instrumentation.
     import dis
     import functools
     import random
     import os
     import _frozen_importlib_external
-    if builtins_module is None:
-        import builtins
-    else:
-        builtins = builtins_module
+    import builtins
 
     if selector is None:
         afl_inst_ratio = os.environ.get("AFL_INST_RATIO")
         selector = int(afl_inst_ratio) if afl_inst_ratio else True
 
     original_compile = builtins.compile
+
+    # why monkeypatch when importlib has provided a comprehensive overridable import system
+    # implementation through sys.path_hooks? we want to be able to work with the environment's
+    # existing importer setup rather than mandating a single special importer of our own, which
+    # could be bypassed with the addition of another importer to path_hooks, leading to
+    # weird situations. why not wrap the system's existing path_hooks in-place? due to the
+    # architecture of InspectLoaders and ModuleSpecs etc. this would require wrappers of
+    # object proxies of wrappers of object proxies...
 
     @functools.wraps(original_compile)
     def rewriting_compile(*args, **kwargs):

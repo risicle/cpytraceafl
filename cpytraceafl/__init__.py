@@ -1,3 +1,4 @@
+import ctypes
 import os
 import signal
 import struct
@@ -8,6 +9,7 @@ import sysv_ipc
 from cpytraceafl import tracehook
 
 
+# these values *must* agree with those set in afl's config.h
 FORKSRV_FD = 198
 MAP_SIZE_BITS = 16
 SHM_ENV_VAR = "__AFL_SHM_ID"
@@ -28,7 +30,8 @@ def attach_afl_map_shm(shm_env_var=None):
     return shm
 
 
-def cheap_excepthook(*a, **k):
+def cheap_excepthook(exc_class, exc, traceback):
+    "An excepthook which won't waste any time rendering a traceback"
     sys.exit(99)
 
 
@@ -38,6 +41,9 @@ def crashing_excepthook(exc_class, exc, traceback):
 
 
 def forkserver(forksrv_read_fd=None, forksrv_write_fd=None):
+    """
+        Start forkserver for AFL, parent process will never return, child will.
+    """
     forksrv_read_fd = forksrv_read_fd or FORKSRV_FD
     forksrv_write_fd = forksrv_write_fd or (forksrv_read_fd + 1)
 
@@ -66,6 +72,10 @@ def forkserver(forksrv_read_fd=None, forksrv_write_fd=None):
 
 
 def fuzz_from_here(excepthook=cheap_excepthook):
+    """
+        Shortcut to setup & start forkserver on parent process, Child processes will return
+        from this function with tracing started. Will also install `excepthook` if provided.
+    """
     shm = attach_afl_map_shm()
     forkserver()
     install_trace_hook(shm.address)

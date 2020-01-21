@@ -5,6 +5,7 @@
 
 #define HASH_PRIME 0xedb6417b
 
+// keep these settings as globals for zero-overhead access during tracehook execution
 static char* afl_map_start = NULL;
 static unsigned char afl_map_size_bits = 16;
 
@@ -66,17 +67,17 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "OsO", &frame, &event, &arg))
         return NULL;
 
-    // In instrumented code objects, this number is effetively the current basic block number
-    // added to the code object's co_firstlineno, which is used as a "base hash" for the code
-    // object. Previously we used the raw memory location of the code object for this, but
+    // In instrumented code objects, this number is effectively the current basic block number
+    // added to the code object's co_firstlineno (which is used as a "base hash" for the code
+    // object). Previously we used the raw memory location of the code object for this, but
     // that has the potential to be chaotic if an execution path affects the order in which
-    // various memory allocations were made.
+    // various memory allocations are made.
     PyObject* f_lineno = PyObject_GetAttrString(frame, "f_lineno");
     if (f_lineno == NULL) return NULL;
     unsigned long lineno = PyLong_AsUnsignedLong(f_lineno);
     Py_DECREF(f_lineno);
 
-    // bytecode offset is also useful & consistent entropy, we'll have that too.
+    // bytecode offset is also useful & consistent entropy - we'll have that too.
     PyObject* f_lasti = PyObject_GetAttrString(frame, "f_lasti");
     if (f_lasti == NULL) return NULL;
     unsigned long bytecode_offset = PyLong_AsUnsignedLong(f_lasti);
@@ -128,10 +129,12 @@ static PyMethodDef TracehookMethods[] = {
 
 static struct PyModuleDef tracehookmodule = {
     PyModuleDef_HEAD_INIT,
-    "tracehook",   /* name of module */
-    NULL, /* module documentation, may be NULL */
-    -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
+    // name
+    "tracehook",
+    // documentation
+    NULL,
+    // per-interpreter state size
+    -1,
     TracehookMethods
 };
 
