@@ -1,4 +1,7 @@
 #!/bin/sh
 
+# put a symlink to this script in your AFL_PATH directory under the name afl-qemu-trace
+# to fuzz a python forkserver using an unmodified AFL (or AFL++) in "qemu mode".
+
 shift
 exec "$@" > forkserver.out 2> forkserver.err
