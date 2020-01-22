@@ -4,7 +4,9 @@ install_rewriter(selector=lambda code: "simplejson" in code.co_filename)
 
 import simplejson
 
+# we want to fuzz the python implementation, not the c extension
 simplejson._toggle_speedups(False)
+# initial call to set up any internal caches or imports before the fork
 simplejson.loads('{"foo": "bar", "baz": ["qux", 123, false]}')
 
 import sys
