@@ -20,4 +20,5 @@ setup(
     packages=find_packages(),
     install_requires=["sysv_ipc"],
     python_requires="==3.7",  # specifically cpython 3.7 - not tested with any other version (yet)
+    license='MIT',
 )
