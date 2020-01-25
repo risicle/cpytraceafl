@@ -48,10 +48,11 @@ fuzz_from_here()
 the `fork()` will have been made and tracing started. You now simply read your input file and
 call your function under test.
 
-Examples for fuzzing common packages are provided in <./examples/>.
+Examples for fuzzing some common packages are provided in [examples/](./examples/).
 
-As for hooking this script up to AFL, I tend to use the included `dummy-afl-qemu-trace`
-shim script to fool AFL's QEmu mode into interacting directly with the python process.
+As for hooking this script up to AFL, I tend to use the included
+[dummy-afl-qemu-trace](./dummy-afl-qemu-trace) shim script to fool AFL's QEmu mode into
+communicating directly with the python process.
 
 ## Q & A
 
