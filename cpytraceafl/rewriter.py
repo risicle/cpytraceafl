@@ -5,10 +5,10 @@ INST_RATIO_PRECISION_BITS = 7
 # because of the risk of recursion during import. we avoid module-level imports so we can
 # ensure we're only importing whatever's strictly necessary before the rewriter has been
 # installed
-def rewrite(dis, random_class, code, selector=True):
+def rewrite(python_version, dis, random_class, code, selector=True):
     code_type = type(code)
     consts = tuple(
-        rewrite(dis, random_class, const, selector) if isinstance(const, code_type) else const
+        rewrite(python_version, dis, random_class, const, selector) if isinstance(const, code_type) else const
         for const in code.co_consts
     )
 
@@ -69,8 +69,9 @@ def rewrite(dis, random_class, code, selector=True):
         # a blank lnotab signals to the trace hook that we don't want line tracing here
         lnotab = b""
 
-    return code_type(
+    code_args = (
         code.co_argcount,
+    ) + (() if python_version[:2] < (3, 8) else (code.co_posonlyargcount,)) + (
         code.co_kwonlyargcount,
         code.co_nlocals,
         code.co_stacksize,
@@ -91,6 +92,8 @@ def rewrite(dis, random_class, code, selector=True):
         code.co_freevars,
         code.co_cellvars,
     )
+
+    return code_type(*code_args)
 
 
 def install_rewriter(selector=None):
@@ -128,6 +131,7 @@ def install_rewriter(selector=None):
     import os
     import _frozen_importlib_external
     import builtins
+    from sys import version_info
 
     if selector is None:
         afl_inst_ratio = os.environ.get("AFL_INST_RATIO")
@@ -145,11 +149,11 @@ def install_rewriter(selector=None):
 
     @functools.wraps(original_compile)
     def rewriting_compile(*args, **kwargs):
-        return rewrite(dis, random.Random, original_compile(*args, **kwargs), selector)
+        return rewrite(version_info, dis, random.Random, original_compile(*args, **kwargs), selector)
     builtins.compile = rewriting_compile
 
     original_compile_bytecode = _frozen_importlib_external._compile_bytecode
     @functools.wraps(original_compile_bytecode)
     def rewriting_compile_bytecode(*args, **kwargs):
-        return rewrite(dis, random.Random, original_compile_bytecode(*args, **kwargs), selector)
+        return rewrite(version_info, dis, random.Random, original_compile_bytecode(*args, **kwargs), selector)
     _frozen_importlib_external._compile_bytecode = rewriting_compile_bytecode
