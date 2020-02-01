@@ -77,3 +77,8 @@ that half the bytecode instructions could result in calls out to more arbitrary 
 (uninstrumented) native code that could have arbitrary side effects. But for our needs it works
 well enough (recall that AFL coverage analysis is robust to random instrumentation
 sites being omitted through `AFL_INST_RATIO` or `AFL_INST_LIBS`).
+
+### Doesn't abusing `lnotab` break python's debugging mechanisms?
+
+Absolutely it does. Don't use instrumented programs to debug problematic cases - use it to
+generate problematic inputs. Analyze them with instrumentation turned off.
