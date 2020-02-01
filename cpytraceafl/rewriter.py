@@ -108,7 +108,8 @@ def install_rewriter(selector=None):
         before the rewriter is installed will cause their modules to not be properly rewritten
         and so not properly traced.
 
-        `selector` can be used to control which code objects are instrumented and to what degree. This can be a callable which takes a single argument, `code`, the code object
+        `selector` can be used to control which code objects are instrumented and to what
+        degree. This can be a callable which takes a single argument, `code`, the code object
         about to be rewritten. This callable should return:
          - True, to indicate the code object should be fully instrumented for tracing.
          - False, indicating the code object should receive no instrumentation and tracing
