@@ -21,6 +21,6 @@ setup(
     setup_requires=["pytest-runner"],
     install_requires=["sysv_ipc"],
     tests_require=["pytest"],
-    python_requires="==3.7",  # specifically cpython 3.7 - not tested with any other version (yet)
+    python_requires=">=3.5, <3.8",  # not tested with other versions (yet)
     license='MIT',
 )
