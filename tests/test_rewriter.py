@@ -1,10 +1,13 @@
 import builtins
 import dis
-from itertools import chain
+from itertools import chain, count
 import random
 from types import CodeType
+from unittest import mock
 
-from cpytraceafl.rewriter import rewrite
+import pytest
+
+from cpytraceafl import rewriter
 
 
 test_source = """
@@ -65,43 +68,169 @@ def _extract_lnotabs(code_obj):
     )
 
 
-# a compact way of representing a lnotab bytestring, handling interleaving & conversion
+# allows a compact way of representing a lnotab bytestring, handling interleaving & conversion
 def _l(*a):
     return bytes(chain.from_iterable((b, 1) for b in a))
 
 
-def test_rewrite():
-    orig_code = builtins.compile(test_source, "foo.py", "exec")
-
-    rewritten = rewrite(dis, random.Random, orig_code, True)
-
-    assert _extract_lnotabs(rewritten) == (
+@pytest.mark.parametrize("selector,expected_lnotabs", tuple(chain.from_iterable(
+    # keep together a number of "aliases" of a selector that should result in the same output
+    ((selector, expected_lnotabs) for selector in selector_aliases)
+    for selector_aliases, expected_lnotabs in (
         (
+            (True, lambda _: True, 100, lambda _: 100, 99.99, lambda _: 99.99, 1000,),
             (
                 (
                     (
                         (
-                            # lambda
-                            ((), _l(0, 4, 6,)),
+                            (
+                                (
+                                    # lambda
+                                    ((), _l(0, 4, 6,)),
+                                ),
+                                # qux
+                                _l(0, 58, 8, 20, 12, 2,),
+                            ),
+                            # listcomp
+                            ((), _l(0, 4, 12, 6, 4,),),
                         ),
-                        # qux
-                        _l(0, 58, 8, 20, 12, 2,),
+                        # baz
+                        _l(0, 28, 28, 8, 14, 4, 10, 4, 4, 8, 8, 8, 4, 4, 12, 8, 34, 2, 4, 6, 4, 2,),
                     ),
-                    # listcomp
-                    ((), _l(0, 4, 12, 6, 4,)),
+                    (
+                        (
+                            # genexpr
+                            ((), _l(0, 2, 8, 8, 6, 8, 6, 2, 4,),),
+                        ),
+                        # zab
+                        _l(0, 8, 4, 6, 30, 8, 12, 8, 12, 8, 16, 6,),
+                    ),
                 ),
-                # baz
-                _l(0, 28, 28, 8, 14, 4, 10, 4, 4, 8, 8, 8, 4, 4, 12, 8, 34, 2, 4, 6, 4, 2,),
+                # module
+                _l(0,),
+            ),
+        ),
+        (
+            (False, lambda _: False, 0, lambda _: 0,),
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    # lambda
+                                    ((), b""),
+                                ),
+                                # qux
+                                b"",
+                            ),
+                            # listcomp
+                            ((), b"",),
+                        ),
+                        # baz
+                        b"",
+                    ),
+                    (
+                        (
+                            # genexpr
+                            ((), b"",),
+                        ),
+                        # zab
+                        b"",
+                    ),
+                ),
+                # module
+                b"",
+            ),
+        ),
+        (
+            (
+                lambda code: code.co_name in ("baz", "zab"),
+                lambda code: 100 if code.co_name in ("baz", "zab") else 0,
             ),
             (
                 (
-                    # genexpr
-                    ((), _l(0, 2, 8, 8, 6, 8, 6, 2, 4,),),
+                    (
+                        (
+                            (
+                                (
+                                    # lambda
+                                    ((), b""),
+                                ),
+                                # qux
+                                b"",
+                            ),
+                            # listcomp
+                            ((), b"",),
+                        ),
+                        # baz
+                        _l(0, 28, 28, 8, 14, 4, 10, 4, 4, 8, 8, 8, 4, 4, 12, 8, 34, 2, 4, 6, 4, 2,),
+                    ),
+                    (
+                        (
+                            # genexpr
+                            ((), b"",),
+                        ),
+                        # zab
+                        _l(0, 8, 4, 6, 30, 8, 12, 8, 12, 8, 16, 6,),
+                    ),
                 ),
-                # zab
-                _l(0, 8, 4, 6, 30, 8, 12, 8, 12, 8, 16, 6,),
+                # module
+                b"",
             ),
         ),
-        # module
-        _l(0),
+        (
+            (20, lambda _: 20,),
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    # lambda
+                                    ((), b"",),
+                                ),
+                                # qux
+                                _l(0,),
+                            ),
+                            # listcomp
+                            ((), b"",),
+                        ),
+                        # baz
+                        _l(0, 28, 68, 48, 58, 2,),
+                    ),
+                    (
+                        (
+                            # genexpr
+                            ((), _l(32,),),
+                        ),
+                        # zab
+                        _l(56, 12,),
+                    ),
+                ),
+                # module
+                _l(0,),
+            ),
+        ),
     )
+)))
+def test_rewrite(selector, expected_lnotabs):
+    orig_code = builtins.compile(test_source, "foo.py", "exec")
+
+    def mk_mock_random_instance(code_obj):
+        # a simple pseudo-pseudo-random number generator "seeded" on the co_firstlineno of
+        # the provided code object - something that shouldn't be volatile between python
+        # versions.
+        # a new mock random instance is created for each use to confine the state of the
+        # generator to one code object, limiting the amount changes in calling patterns can
+        # propagate.
+        inst = mock.create_autospec(random.Random, instance=True)
+        inst_counter = count(code_obj.co_firstlineno, 19)
+        inst.getrandbits.side_effect = lambda bits: next(inst_counter) % (1<<bits)
+        return inst
+
+    mock_random_class = mock.create_autospec(random.Random, side_effect=mk_mock_random_instance)
+
+    rewritten = rewriter.rewrite(dis, mock_random_class, orig_code, selector)
+
+    assert _extract_lnotabs(rewritten) == expected_lnotabs

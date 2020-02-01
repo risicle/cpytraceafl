@@ -19,6 +19,7 @@ def rewrite(dis, random_class, code, selector=True):
     elif not selection:
         inst_sel = False
     else:
+        # use (hash of) code object to seed the random instance
         rng = random_class(code)
         inst_sel = lambda: (
             rng.getrandbits(INST_RATIO_PRECISION_BITS) <= (
