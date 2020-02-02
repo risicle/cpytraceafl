@@ -3,6 +3,9 @@ from setuptools import setup, Extension, find_packages
 
 here = path.abspath(path.dirname(__file__))
 
+with open(path.join(here, "README.md")) as f:
+    long_description = f.read()
+
 version_namespace = {}
 with open(path.join(here, "cpytraceafl/version.py")) as f:
     exec(f.read(), version_namespace)
@@ -15,7 +18,15 @@ tracehookmodule = Extension(
 setup(
     name="cpytraceafl",
     version=version_namespace["__version__"],
+
     description="CPython bytecode instrumentation and forkserver tools for fuzzing python code using AFL",
+    long_description=long_description,
+
+    url='https://github.com/risicle/cpytraceafl',
+
+    author="Robert Scott",
+    author_email="code@humanleg.org.uk",
+
     ext_modules=[tracehookmodule],
     packages=find_packages(),
     setup_requires=["pytest-runner"],
