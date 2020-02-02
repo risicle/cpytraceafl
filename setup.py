@@ -21,6 +21,7 @@ setup(
 
     description="CPython bytecode instrumentation and forkserver tools for fuzzing python code using AFL",
     long_description=long_description,
+    long_description_content_type="text/markdown",
 
     url='https://github.com/risicle/cpytraceafl',
 
