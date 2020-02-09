@@ -74,20 +74,26 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     // various memory allocations are made.
     PyObject* f_lineno = PyObject_GetAttrString(frame, "f_lineno");
     if (f_lineno == NULL) return NULL;
-    unsigned long lineno = PyLong_AsUnsignedLong(f_lineno);
+    uint32_t lineno = (uint32_t)PyLong_AsUnsignedLong(f_lineno);
     Py_DECREF(f_lineno);
+    if (!lineno)  // avoid zero multiplication
+        lineno = ~(uint32_t)0;
 
     // bytecode offset is also useful & consistent entropy - we'll have that too.
     PyObject* f_lasti = PyObject_GetAttrString(frame, "f_lasti");
     if (f_lasti == NULL) return NULL;
-    unsigned long bytecode_offset = PyLong_AsUnsignedLong(f_lasti);
+    uint32_t bytecode_offset = (uint32_t)PyLong_AsUnsignedLong(f_lasti);
     Py_DECREF(f_lasti);
+    if (!bytecode_offset)  // avoid zero multiplication
+        bytecode_offset = ~(uint32_t)0;
 
     // multiplicative hashing - keep most significant bits of a modular multiplication as "hash"
     uint32_t state = HASH_PRIME;
-    state *= (uint32_t)lineno;
-    state *= (uint32_t)bytecode_offset;
+    state *= lineno;
+    state *= bytecode_offset;
 
+    // in case our map size has been changed for some reason (shouldn't happen outside tests)
+    prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
     uint32_t this_loc = state >> (32-afl_map_size_bits);
 
     afl_map_start[this_loc ^ (prev_loc>>1)]++;
