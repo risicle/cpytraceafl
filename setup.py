@@ -19,7 +19,7 @@ setup(
     name="cpytraceafl",
     version=version_namespace["__version__"],
 
-    description="CPython bytecode instrumentation and forkserver tools for fuzzing python code using AFL",
+    description="CPython bytecode instrumentation and forkserver tools for fuzzing python and mixed python/c code using AFL",
     long_description=long_description,
     long_description_content_type="text/markdown",
 

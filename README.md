@@ -2,8 +2,8 @@
 
 CPython bytecode instrumentation and forkserver tools for fuzzing python code using AFL.
 
-The tools in this repository enable coverage-guided fuzzing of pure python code using
-[American Fuzzy Lop](https://github.com/google/AFL) (even better,
+The tools in this repository enable coverage-guided fuzzing of pure python and mixed python/c
+code using [American Fuzzy Lop](https://github.com/google/AFL) (even better,
 [AFL++](https://github.com/vanhauser-thc/AFLplusplus)).
 
 There are three main parts to this:
@@ -54,6 +54,27 @@ As for hooking this script up to AFL, I tend to use the included
 [dummy-afl-qemu-trace](./dummy-afl-qemu-trace) shim script to fool AFL's QEmu mode into
 communicating directly with the python process.
 
+## Fuzzing mixed python/c code
+
+As of version 0.4.0, `cpytraceafl` can gather trace information from C extension modules that
+have been compiled with AFL instrumentation (e.g. using `llvm_mode`). This means that it can
+be used to seamlessly fuzz projects which have a mix of python and C "speedups". This is
+important not only because a lot of python format-parsing packages use this approach, but
+because issues revealed in native code are far more likely to have security implications.
+
+Including instrumented native code requires a little more care when preparing a target for
+fuzzing. For instance, it's important to ensure the `cpytraceafl.tracehook` module has been
+imported and it has had its `set_map_start(...)` function provided with a valid memory
+area *before* any instrumented extension modules are loaded. This is because simply loading an
+instrumented native module will cause it to attempt to log its execution trace somewhere.
+
+The example [pillow_pcx_example.py](./examples/pillow_pcx_example.py) demonstrates a fuzzing
+target taking the necessary precautions into account.
+
+It's possible that you're _only_ interested in tracing the native code, using `cpytraceafl`
+just as a driver, in which case you can omit the early `install_rewriter()` call and all
+the weirdness involved with that.
+
 ## Q & A
 
 ### Is there any point in fuzzing python? Isn't it too slow?
@@ -82,3 +103,19 @@ sites being omitted through `AFL_INST_RATIO` or `AFL_INST_LIBS`).
 
 Absolutely it does. Don't use instrumented programs to debug problematic cases - use it to
 generate problematic inputs. Analyze them with instrumentation turned off.
+
+### I'm getting `undefined symbol: __afl_area_ptr`
+
+Looks like you're trying to import an (instrumented) native extension module before the
+`cpytraceafl.tracehook` module has been loaded (which is what provides that symbol).
+
+### I'm getting Segmentation Faults after importing an instrumented native module
+
+You probably also need to provide `cpytraceafl.tracehook.set_map_start(...)` with a valid
+writeable memory area before the import. Assuming you're not interested in the trace associated
+with the import process, this can just be a dummy which you later discard. I'd recommend either
+using an `mmap` object or `sysv_ipc.SharedMemory`. When `fuzz_from_here()` is called, this will
+be replaced with right one.
+
+It's also possible the instrumented module was built with a different AFL `MAP_SIZE_POW2` from
+that in `cpytraceafl.MAP_SIZE_BITS`.
