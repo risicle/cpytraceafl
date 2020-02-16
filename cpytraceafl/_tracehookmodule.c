@@ -135,7 +135,7 @@ static PyMethodDef TracehookMethods[] = {
 static struct PyModuleDef tracehookmodule = {
     PyModuleDef_HEAD_INIT,
     // name
-    "tracehook",
+    "_tracehook",
     // documentation
     NULL,
     // per-interpreter state size
@@ -144,7 +144,7 @@ static struct PyModuleDef tracehookmodule = {
 };
 
 PyMODINIT_FUNC
-PyInit_tracehook(void)
+PyInit__tracehook(void)
 {
     return PyModule_Create(&tracehookmodule);
 }

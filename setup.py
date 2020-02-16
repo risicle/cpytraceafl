@@ -11,8 +11,8 @@ with open(path.join(here, "cpytraceafl/version.py")) as f:
     exec(f.read(), version_namespace)
 
 tracehookmodule = Extension(
-    "cpytraceafl.tracehook",
-    sources=["cpytraceafl/tracehookmodule.c"],
+    "cpytraceafl._tracehook",
+    sources=["cpytraceafl/_tracehookmodule.c"],
 )
 
 setup(
