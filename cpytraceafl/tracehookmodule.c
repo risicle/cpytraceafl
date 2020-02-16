@@ -5,9 +5,10 @@
 
 #define HASH_PRIME 0xedb6417b
 
-// keep these settings as globals for zero-overhead access during tracehook execution
-static char* afl_map_start = NULL;
 static unsigned char afl_map_size_bits = 16;
+
+char* __afl_area_ptr = NULL;
+__thread uint32_t __afl_prev_loc;
 
 static PyObject * tracehook_set_map_start(PyObject *self, PyObject *args) {
     unsigned long long _afl_map_start;
@@ -15,7 +16,7 @@ static PyObject * tracehook_set_map_start(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "K", &_afl_map_start))
         return NULL;
 
-    afl_map_start = (char *) _afl_map_start;
+    __afl_area_ptr = (char *) _afl_map_start;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -58,8 +59,6 @@ static PyObject * tracehook_global_trace_hook(PyObject *self, PyObject *args) {
 }
 
 static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
-    static __thread uint32_t prev_loc;
-
     PyObject* frame;
     char* event;
     PyObject* arg;
@@ -93,11 +92,11 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     state *= bytecode_offset;
 
     // in case our map size has been changed for some reason (shouldn't happen outside tests)
-    prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
+    __afl_prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
     uint32_t this_loc = state >> (32-afl_map_size_bits);
 
-    afl_map_start[this_loc ^ (prev_loc>>1)]++;
-    prev_loc = this_loc;
+    __afl_area_ptr[this_loc ^ (__afl_prev_loc>>1)]++;
+    __afl_prev_loc = this_loc;
 
     PyObject* line_trace_hook = PyObject_GetAttrString(self, "line_trace_hook");
     if (line_trace_hook == NULL) return NULL;

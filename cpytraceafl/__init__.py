@@ -9,7 +9,8 @@ import sysv_ipc
 from cpytraceafl import tracehook
 
 
-# these values *must* agree with those set in afl's config.h
+# these values *must* agree with those set in afl's config.h, and also those used when compiling
+# any instrumented native modules
 FORKSRV_FD = 198
 MAP_SIZE_BITS = 16
 SHM_ENV_VAR = "__AFL_SHM_ID"
