@@ -43,13 +43,18 @@ def crashing_excepthook(exc_class, exc, traceback):
 
 def forkserver(forksrv_read_fd=None, forksrv_write_fd=None):
     """
-        Start forkserver for AFL, parent process will never return, child will.
+        Attempt to start forkserver for AFL, if successful, parent process will never
+        return, child will return True. If not successful, parent will return False.
     """
     forksrv_read_fd = forksrv_read_fd or FORKSRV_FD
     forksrv_write_fd = forksrv_write_fd or (forksrv_read_fd + 1)
 
-    forksrv_reader = open(forksrv_read_fd, "rb", buffering=0)
-    forksrv_writer = open(forksrv_write_fd, "wb", buffering=0)
+    try:
+        forksrv_reader = open(forksrv_read_fd, "rb", buffering=0)
+        forksrv_writer = open(forksrv_write_fd, "wb", buffering=0)
+    except OSError:
+        # don't run a forkserver
+        return False
 
     # tell parent we're alive
     forksrv_writer.write(b"\0" * 4)
@@ -64,7 +69,7 @@ def forkserver(forksrv_read_fd=None, forksrv_write_fd=None):
             # we are the child
             forksrv_reader.close()
             forksrv_writer.close()
-            return
+            return True
 
         # we are the parent. continue in loop forever.
         forksrv_writer.write(struct.pack("I", child_pid))
