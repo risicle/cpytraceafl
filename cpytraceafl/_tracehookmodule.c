@@ -8,7 +8,24 @@
 static unsigned char afl_map_size_bits = 16;
 
 char* __afl_area_ptr = NULL;
-__thread uint32_t __afl_prev_loc;
+
+#define NGRAM_SIZE_MAX 16U
+#define PREV_LOC_SIZE_MAX sizeof(uint64_t)
+#define PREV_LOC_VECTOR_SIZE_MAX NGRAM_SIZE_MAX*PREV_LOC_SIZE_MAX
+
+// we over-allocate as much prev_loc space as we could possibly need
+// (given the above values) because at compile-time we don't know what
+// ngram settings (if any) will be in use
+typedef struct {
+    union {
+        char byte[PREV_LOC_VECTOR_SIZE_MAX];
+        uint32_t u32[NGRAM_SIZE_MAX];
+    } as;
+} afl_prev_loc_vector_t;
+
+// non-ngram-aware AFL should be able to interpret this symbol as a
+// plain old uint32 and work fine
+__thread afl_prev_loc_vector_t __afl_prev_loc;
 
 static PyObject * tracehook_set_map_start(PyObject *self, PyObject *args) {
     unsigned long long _afl_map_start;
@@ -92,11 +109,11 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     state *= bytecode_offset;
 
     // in case our map size has been changed for some reason (shouldn't happen outside tests)
-    __afl_prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
+    __afl_prev_loc.as.u32[0] &= (~(uint32_t)0) >> (32-afl_map_size_bits);
     uint32_t this_loc = state >> (32-afl_map_size_bits);
 
-    __afl_area_ptr[this_loc ^ (__afl_prev_loc>>1)]++;
-    __afl_prev_loc = this_loc;
+    __afl_area_ptr[this_loc ^ (__afl_prev_loc.as.u32[0]>>1)]++;
+    __afl_prev_loc.as.u32[0] = this_loc;
 
     PyObject* line_trace_hook = PyObject_GetAttrString(self, "line_trace_hook");
     if (line_trace_hook == NULL) return NULL;
