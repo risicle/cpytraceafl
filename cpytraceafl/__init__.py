@@ -83,7 +83,8 @@ def fuzz_from_here(excepthook=cheap_excepthook):
         from this function with tracing started. Will also install `excepthook` if provided.
     """
     shm = attach_afl_map_shm()
-    forkserver()
+    forked = forkserver()
     install_trace_hook(shm.address)
     if excepthook:
         sys.excepthook = excepthook
+    return forked
