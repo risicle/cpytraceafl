@@ -27,6 +27,9 @@ typedef struct {
 // plain old uint32 and work fine
 __thread afl_prev_loc_vector_t __afl_prev_loc;
 
+// needed by AFL++'s context sensitive coverage feature
+__thread uint32_t __afl_prev_ctx;
+
 static PyObject * tracehook_set_map_start(PyObject *self, PyObject *args) {
     unsigned long long _afl_map_start;
 
