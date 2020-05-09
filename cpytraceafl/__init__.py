@@ -12,12 +12,24 @@ from cpytraceafl import tracehook
 # these values *must* agree with those set in afl's config.h, and also those used when compiling
 # any instrumented native modules
 FORKSRV_FD = 198
-MAP_SIZE_BITS = 16
-SHM_ENV_VAR = "__AFL_SHM_ID"
+DEFAULT_MAP_SIZE_BITS = 16
+DEFAULT_SHM_ENV_VAR = "__AFL_SHM_ID"
+
+MAP_SIZE_ENV_VAR = "AFL_MAP_SIZE"
+
+
+def _get_map_size_bits_env():
+    if MAP_SIZE_ENV_VAR in os.environ:
+        map_size = int(os.environ[MAP_SIZE_ENV_VAR])
+        map_size_bits = map_size.bit_length() - 1
+        if 1<<map_size_bits != map_size:
+            raise ValueError("Non-power-of-two AFL_MAP_SIZE not supported")
+        return map_size_bits
 
 
 def install_trace_hook(map_start_addr, map_size_bits=None):
-    map_size_bits = map_size_bits or MAP_SIZE_BITS
+    if map_size_bits is None:
+        map_size_bits = _get_map_size_bits_env() or DEFAULT_MAP_SIZE_BITS
     tracehook.set_map_start(map_start_addr)
     tracehook.set_map_size_bits(map_size_bits)
 
@@ -25,7 +37,7 @@ def install_trace_hook(map_start_addr, map_size_bits=None):
 
 
 def attach_afl_map_shm(shm_env_var=None):
-    shm_env_var = shm_env_var or SHM_ENV_VAR
+    shm_env_var = shm_env_var or DEFAULT_SHM_ENV_VAR
     shm = sysv_ipc.attach(int(os.environ[shm_env_var]))
     shm.write(b"\x01", offset=0)
     return shm
