@@ -56,3 +56,14 @@ def test_line_trace_hook(map_size_bits, lineno0, lasti0, lineno1, lasti1, expect
             assert mem.read() == expected_map
         finally:
             del first_byte
+
+
+@pytest.mark.parametrize("value", (1, 128,))
+def test_invalid_ngram_size_bits(value):
+    with pytest.raises(ValueError):
+        tracehook.set_ngram_size_bits(value)
+
+
+@pytest.mark.parametrize("value", (0, 2, 3,))
+def test_valid_ngram_size_bits(value):
+    tracehook.set_ngram_size_bits(value)

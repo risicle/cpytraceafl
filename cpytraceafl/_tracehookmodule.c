@@ -6,6 +6,7 @@
 #define HASH_PRIME 0xedb6417b
 
 static unsigned char afl_map_size_bits = 16;
+static unsigned char afl_ngram_size = 0;
 
 char* __afl_area_ptr = NULL;
 
@@ -45,6 +46,22 @@ static PyObject * tracehook_set_map_start(PyObject *self, PyObject *args) {
 static PyObject * tracehook_set_map_size_bits(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "b", &afl_map_size_bits))
         return NULL;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject * tracehook_set_ngram_size_bits(PyObject *self, PyObject *args) {
+    unsigned char ngram_size;
+    if (!PyArg_ParseTuple(args, "b", &ngram_size))
+        return NULL;
+
+    if (ngram_size != 0 && (ngram_size < 2 || ngram_size > NGRAM_SIZE_MAX)) {
+        PyErr_SetString(PyExc_ValueError, "ngram size must be 0 or between 2 and NGRAM_SIZE_MAX");
+        return NULL;
+    }
+
+    afl_ngram_size = ngram_size;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -95,14 +112,15 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     if (f_lineno == NULL) return NULL;
     uint32_t lineno = (uint32_t)PyLong_AsUnsignedLong(f_lineno);
     Py_DECREF(f_lineno);
-    if (!lineno)  // avoid zero multiplication
-        lineno = ~(uint32_t)0;
 
     // bytecode offset is also useful & consistent entropy - we'll have that too.
     PyObject* f_lasti = PyObject_GetAttrString(frame, "f_lasti");
     if (f_lasti == NULL) return NULL;
     uint32_t bytecode_offset = (uint32_t)PyLong_AsUnsignedLong(f_lasti);
     Py_DECREF(f_lasti);
+
+    if (!lineno)  // avoid zero multiplication
+        lineno = ~(uint32_t)0;
     if (!bytecode_offset)  // avoid zero multiplication
         bytecode_offset = ~(uint32_t)0;
 
@@ -111,11 +129,24 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     state *= lineno;
     state *= bytecode_offset;
 
-    // in case our map size has been changed for some reason (shouldn't happen outside tests)
-    __afl_prev_loc.as.u32[0] &= (~(uint32_t)0) >> (32-afl_map_size_bits);
     uint32_t this_loc = state >> (32-afl_map_size_bits);
 
-    __afl_area_ptr[this_loc ^ (__afl_prev_loc.as.u32[0]>>1)]++;
+    uint32_t prev_loc = __afl_prev_loc.as.u32[0];
+    if (afl_ngram_size) {
+        // reduce ngram elements into prev_loc
+        for (int i=1; i < afl_ngram_size; i++) {
+            prev_loc ^= __afl_prev_loc.as.u32[i];
+        }
+    }
+    // in case our map size has been changed for some reason (shouldn't happen outside tests)
+    prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
+
+    __afl_area_ptr[this_loc ^ (prev_loc>>1)]++;
+
+    if (afl_ngram_size) {
+        // advance the conveyor belt
+        memmove(&__afl_prev_loc.as.u32[1], __afl_prev_loc.as.u32, sizeof(uint32_t) * (afl_ngram_size-1));
+    }
     __afl_prev_loc.as.u32[0] = this_loc;
 
     PyObject* line_trace_hook = PyObject_GetAttrString(self, "line_trace_hook");
@@ -136,6 +167,12 @@ static PyMethodDef TracehookMethods[] = {
         tracehook_set_map_size_bits,
         METH_VARARGS,
         "Set log2 of size of AFL shared memory region"
+    },
+    {
+        "set_ngram_size_bits",
+        tracehook_set_ngram_size_bits,
+        METH_VARARGS,
+        "Set number of branches to remember, 0 to disable ngram mode"
     },
     {
         "global_trace_hook",
