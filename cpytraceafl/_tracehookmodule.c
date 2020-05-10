@@ -141,7 +141,10 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     // in case our map size has been changed for some reason (shouldn't happen outside tests)
     prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
 
-    __afl_area_ptr[this_loc ^ (prev_loc>>1)]++;
+    // mimic "never zero" behaviour when incrementing visits
+    uint32_t map_slot = this_loc ^ (prev_loc>>1);
+    uint8_t visits = __afl_area_ptr[map_slot] + 1;
+    __afl_area_ptr[map_slot] = visits ? visits : 1;
 
     if (afl_ngram_size) {
         // advance the conveyor belt
