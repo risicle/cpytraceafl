@@ -51,7 +51,7 @@ static PyObject * tracehook_set_map_size_bits(PyObject *self, PyObject *args) {
     return Py_None;
 }
 
-static PyObject * tracehook_set_ngram_size_bits(PyObject *self, PyObject *args) {
+static PyObject * tracehook_set_ngram_size(PyObject *self, PyObject *args) {
     unsigned char ngram_size;
     if (!PyArg_ParseTuple(args, "b", &ngram_size))
         return NULL;
@@ -172,8 +172,8 @@ static PyMethodDef TracehookMethods[] = {
         "Set log2 of size of AFL shared memory region"
     },
     {
-        "set_ngram_size_bits",
-        tracehook_set_ngram_size_bits,
+        "set_ngram_size",
+        tracehook_set_ngram_size,
         METH_VARARGS,
         "Set number of branches to remember, 0 to disable ngram mode"
     },

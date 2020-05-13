@@ -48,7 +48,7 @@ def test_line_trace_hook(map_size_bits, ngram_size, map_prepop, lineno_lasti_pai
         try:
             tracehook.set_map_start(ctypes.addressof(first_byte))
             tracehook.set_map_size_bits(map_size_bits)
-            tracehook.set_ngram_size_bits(ngram_size)
+            tracehook.set_ngram_size(ngram_size)
 
             for lineno, lasti in lineno_lasti_pairs[:-1]:
                 mock_frame = mock.create_autospec(
@@ -81,11 +81,11 @@ def test_line_trace_hook(map_size_bits, ngram_size, map_prepop, lineno_lasti_pai
 
 
 @pytest.mark.parametrize("value", (1, 128,))
-def test_invalid_ngram_size_bits(value):
+def test_invalid_ngram_size(value):
     with pytest.raises(ValueError):
-        tracehook.set_ngram_size_bits(value)
+        tracehook.set_ngram_size(value)
 
 
 @pytest.mark.parametrize("value", (0, 2, 3,))
-def test_valid_ngram_size_bits(value):
-    tracehook.set_ngram_size_bits(value)
+def test_valid_ngram_size(value):
+    tracehook.set_ngram_size(value)
