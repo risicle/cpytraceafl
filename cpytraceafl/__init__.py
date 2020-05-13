@@ -19,7 +19,7 @@ MAP_SIZE_ENV_VAR = "AFL_MAP_SIZE"
 NGRAM_SIZE_ENV_VAR = "AFL_NGRAM_SIZE"
 
 
-def _get_map_size_bits_env():
+def get_map_size_bits_env():
     if MAP_SIZE_ENV_VAR in os.environ:
         map_size = int(os.environ[MAP_SIZE_ENV_VAR])
         map_size_bits = map_size.bit_length() - 1
@@ -30,7 +30,7 @@ def _get_map_size_bits_env():
 
 def install_trace_hook(map_start_addr, map_size_bits=None, ngram_size=None):
     if map_size_bits is None:
-        map_size_bits = _get_map_size_bits_env() or DEFAULT_MAP_SIZE_BITS
+        map_size_bits = get_map_size_bits_env() or DEFAULT_MAP_SIZE_BITS
     if ngram_size is None:
         ngram_size = int(os.environ.get(NGRAM_SIZE_ENV_VAR, 0))
 
