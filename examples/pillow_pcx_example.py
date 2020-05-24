@@ -6,7 +6,7 @@ from cpytraceafl.rewriter import install_rewriter
 
 install_rewriter()
 
-from cpytraceafl import fuzz_from_here, MAP_SIZE_BITS
+from cpytraceafl import fuzz_from_here, DEFAULT_MAP_SIZE_BITS, get_map_size_bits_env
 # must ensure the tracehook module gets imported *before* any instrumented native modules,
 # so that the __afl_area_ptr and __afl_prev_loc global symbols have been loaded
 from cpytraceafl.tracehook import set_map_start
@@ -16,7 +16,8 @@ import sysv_ipc
 # code *before* we do the fork & start tracing, we need to provide a dummy memory area for
 # __afl_area_ptr to point to. here, use some fresh sysv shared memory because it's what we
 # have to hand.
-dummy_sm = sysv_ipc.SharedMemory(None, size=1<<MAP_SIZE_BITS, flags=sysv_ipc.IPC_CREX)
+map_size_bits = get_map_size_bits_env() or DEFAULT_MAP_SIZE_BITS
+dummy_sm = sysv_ipc.SharedMemory(None, size=1<<map_size_bits, flags=sysv_ipc.IPC_CREX)
 set_map_start(dummy_sm.address)
 
 import PIL
