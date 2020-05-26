@@ -1,1 +1,2 @@
+recursive-include cpytraceafl *.h
 recursive-include tests *.py

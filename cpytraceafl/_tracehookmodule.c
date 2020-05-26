@@ -1,28 +1,14 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#include <stdint.h>
+#include "cpytraceafl.h"
 
 #define HASH_PRIME 0xedb6417b
 
-static unsigned char afl_map_size_bits = 16;
-static unsigned char afl_ngram_size = 0;
+unsigned char afl_map_size_bits = 16;
+unsigned char afl_ngram_size = 0;
 
 char* __afl_area_ptr = NULL;
-
-#define NGRAM_SIZE_MAX 16U
-#define PREV_LOC_SIZE_MAX sizeof(uint64_t)
-#define PREV_LOC_VECTOR_SIZE_MAX NGRAM_SIZE_MAX*PREV_LOC_SIZE_MAX
-
-// we over-allocate as much prev_loc space as we could possibly need
-// (given the above values) because at compile-time we don't know what
-// ngram settings (if any) will be in use
-typedef struct {
-    union {
-        char byte[PREV_LOC_VECTOR_SIZE_MAX];
-        uint32_t u32[NGRAM_SIZE_MAX];
-    } as;
-} afl_prev_loc_vector_t;
 
 // non-ngram-aware AFL should be able to interpret this symbol as a
 // plain old uint32 and work fine
@@ -129,28 +115,7 @@ static PyObject * tracehook_line_trace_hook(PyObject *self, PyObject *args) {
     state *= lineno;
     state *= bytecode_offset;
 
-    uint32_t this_loc = state >> (32-afl_map_size_bits);
-
-    uint32_t prev_loc = __afl_prev_loc.as.u32[0];
-    if (afl_ngram_size) {
-        // reduce ngram elements into prev_loc
-        for (int i=1; i < afl_ngram_size; i++) {
-            prev_loc ^= __afl_prev_loc.as.u32[i];
-        }
-    }
-    // in case our map size has been changed for some reason (shouldn't happen outside tests)
-    prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
-
-    // mimic "never zero" behaviour when incrementing visits
-    uint32_t map_slot = this_loc ^ (prev_loc>>1);
-    uint8_t visits = __afl_area_ptr[map_slot] + 1;
-    __afl_area_ptr[map_slot] = visits ? visits : 1;
-
-    if (afl_ngram_size) {
-        // advance the conveyor belt
-        memmove(&__afl_prev_loc.as.u32[1], __afl_prev_loc.as.u32, sizeof(uint32_t) * (afl_ngram_size-1));
-    }
-    __afl_prev_loc.as.u32[0] = this_loc;
+    cpytraceafl_record_loc(state >> (32-afl_map_size_bits));
 
     PyObject* line_trace_hook = PyObject_GetAttrString(self, "line_trace_hook");
     if (line_trace_hook == NULL) return NULL;
