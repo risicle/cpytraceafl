@@ -21,6 +21,8 @@ typedef struct {
 extern __thread afl_prev_loc_vector_t __afl_prev_loc;
 extern char* __afl_area_ptr;
 
+// the least significant afl_map_size_bits bits will be used to generate the final
+// map location, so callers should ensure that's where the most entropy is packed
 static inline void cpytraceafl_record_loc(uint32_t this_loc) {
     uint32_t prev_loc = __afl_prev_loc.as.u32[0];
     if (afl_ngram_size) {
@@ -29,11 +31,11 @@ static inline void cpytraceafl_record_loc(uint32_t this_loc) {
             prev_loc ^= __afl_prev_loc.as.u32[i];
         }
     }
-    // in case our map size has been changed for some reason (shouldn't happen outside tests)
-    prev_loc &= (~(uint32_t)0) >> (32-afl_map_size_bits);
 
+    uint32_t map_slot = this_loc ^ prev_loc;
+    // ensure we can't be addressing outside our allocated region for whatever reason
+    map_slot &= (~(uint32_t)0) >> (32-afl_map_size_bits);
     // mimic "never zero" behaviour when incrementing visits
-    uint32_t map_slot = this_loc ^ (prev_loc>>1);
     uint8_t visits = __afl_area_ptr[map_slot] + 1;
     __afl_area_ptr[map_slot] = visits ? visits : 1;
 
@@ -41,5 +43,5 @@ static inline void cpytraceafl_record_loc(uint32_t this_loc) {
         // advance the conveyor belt
         memmove(&__afl_prev_loc.as.u32[1], __afl_prev_loc.as.u32, sizeof(uint32_t) * (afl_ngram_size-1));
     }
-    __afl_prev_loc.as.u32[0] = this_loc;
+    __afl_prev_loc.as.u32[0] = this_loc>>1;
 }
