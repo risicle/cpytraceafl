@@ -75,6 +75,13 @@ It's possible that you're _only_ interested in tracing the native code, using `c
 just as a driver, in which case you can omit the early `install_rewriter()` call and all
 the weirdness involved with that.
 
+## Regular expressions
+
+[cpytraceafl-regex](https://github.com/risicle/cpytraceafl-regex) is a companion,
+`re`-replacement regex implementation with added instrumentation that should aid AFL in
+generating examples that pass regular expressions used in the target code, or
+exercise them in interesting ways.
+
 ## Q & A
 
 ### Is there any point in fuzzing python? Isn't it too slow?
@@ -90,6 +97,9 @@ uncovered through fuzzing to be security issues - logical flaws in parsing tend 
 unexpected/unhandled exceptions. So it's still a rather useful tool in simply looking for bugs.
 It can be used, for example, to generate a corpus of example inputs for your test suite which
 exercise a large amount of the code.
+
+However, note that while *pure* python code may be memory safe, as soon as you start using
+the C api, Cython, or even start playing with the `ctypes` module, it is *not*.
 
 ### Does basic block analysis make any sense for python code?
 
