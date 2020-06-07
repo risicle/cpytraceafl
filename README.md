@@ -80,7 +80,8 @@ the weirdness involved with that.
 [cpytraceafl-regex](https://github.com/risicle/cpytraceafl-regex) is a companion,
 `re`-replacement regex implementation with added instrumentation that should aid AFL in
 generating examples that pass regular expressions used in the target code, or
-exercise them in interesting ways.
+exercise them in interesting ways. Without this, AFL will just see regular expressions
+as a black box that will act as a barrier to path exploration.
 
 ## Q & A
 
