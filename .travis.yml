@@ -1,0 +1,14 @@
+language: nix
+jobs:
+  include:
+    - name: Unit tests
+      script: nix-shell . --pure --run 'python setup.py test'
+
+    - name: Non-nix installation
+      script:
+        - nix-shell . --pure --run 'python setup.py sdist'
+        - mkdir -p tmp/venv
+        - pushd tmp
+        - nix-shell --pure -p python37Packages.pip --run \
+            'python -m venv venv; source venv/bin/activate; pip install ../dist/cpytraceafl-*.tar.gz; python -c "import cpytraceafl"'
+        - popd
