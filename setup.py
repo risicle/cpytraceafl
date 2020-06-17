@@ -15,6 +15,11 @@ tracehookmodule = Extension(
     sources=["cpytraceafl/_tracehookmodule.c"],
 )
 
+testheadermodule = Extension(
+    "cpytraceafl._testheader",
+    sources=["cpytraceafl/_testheadermodule.c"],
+)
+
 setup(
     name="cpytraceafl",
     version=version_namespace["__version__"],
@@ -28,7 +33,13 @@ setup(
     author="Robert Scott",
     author_email="code@humanleg.org.uk",
 
-    ext_modules=[tracehookmodule],
+    ext_modules=[
+        tracehookmodule,
+        # figuring out how to get setuptools to build a c extension as part of the
+        # *test suite* is more than i'm willing to go through for this so unfortunately
+        # releases will get the test module too.
+        testheadermodule,
+    ],
     packages=find_packages(),
     setup_requires=["pytest-runner"],
     install_requires=["sysv_ipc"],

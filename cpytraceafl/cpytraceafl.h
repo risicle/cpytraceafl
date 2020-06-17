@@ -25,6 +25,7 @@ extern char* __afl_area_ptr;
 // map location, so callers should ensure that's where the most entropy is packed
 static inline void cpytraceafl_record_loc(uint32_t this_loc) {
     uint32_t prev_loc = __afl_prev_loc.as.u32[0];
+    uint32_t loc_mask = (~(uint32_t)0) >> (32-afl_map_size_bits);
     if (afl_ngram_size) {
         // reduce ngram elements into prev_loc
         for (int i=1; i < afl_ngram_size; i++) {
@@ -34,7 +35,7 @@ static inline void cpytraceafl_record_loc(uint32_t this_loc) {
 
     uint32_t map_slot = this_loc ^ prev_loc;
     // ensure we can't be addressing outside our allocated region for whatever reason
-    map_slot &= (~(uint32_t)0) >> (32-afl_map_size_bits);
+    map_slot &= loc_mask;
     // mimic "never zero" behaviour when incrementing visits
     uint8_t visits = __afl_area_ptr[map_slot] + 1;
     __afl_area_ptr[map_slot] = visits ? visits : 1;
@@ -43,5 +44,5 @@ static inline void cpytraceafl_record_loc(uint32_t this_loc) {
         // advance the conveyor belt
         memmove(&__afl_prev_loc.as.u32[1], __afl_prev_loc.as.u32, sizeof(uint32_t) * (afl_ngram_size-1));
     }
-    __afl_prev_loc.as.u32[0] = this_loc>>1;
+    __afl_prev_loc.as.u32[0] = (this_loc>>1) & loc_mask;
 }
