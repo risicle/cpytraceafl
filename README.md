@@ -83,6 +83,16 @@ generating examples that pass regular expressions used in the target code, or
 exercise them in interesting ways. Without this, AFL will just see regular expressions
 as a black box that will act as a barrier to path exploration.
 
+## Trophy cabinet
+
+`cpytraceafl` has been used to find:
+
+ - Pillow: [CVE-2020-10177](https://nvd.nist.gov/vuln/detail/CVE-2020-10177),
+   [CVE-2020-10378](https://nvd.nist.gov/vuln/detail/CVE-2020-10378),
+   [CVE-2020-10379](https://nvd.nist.gov/vuln/detail/CVE-2020-10379),
+   [CVE-2020-10994](https://nvd.nist.gov/vuln/detail/CVE-2020-10994),
+   [CVE-2020-11538](https://nvd.nist.gov/vuln/detail/CVE-2020-11538).
+
 ## Q & A
 
 ### Is there any point in fuzzing python? Isn't it too slow?
