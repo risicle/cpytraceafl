@@ -140,3 +140,13 @@ be replaced with right one.
 
 It's also possible the instrumented module was built with a different AFL `MAP_SIZE_POW2` from
 that in `cpytraceafl.MAP_SIZE_BITS`.
+
+### Do I need a specially-built/instrumented version of cpython to use this?
+
+No, you can use your normal distribution-installed python. If you're just looking at
+fuzzing pure python, you don't need to even think about building any binaries with
+funny compilers.
+
+You may be interested in building c/c++/cython-based modules or their underlying native
+libraries with instrumentation if that's what you're trying to fuzz, but I suspect using
+a natively-instrumented _cpython_ would be quite complicated and extremely slow.
