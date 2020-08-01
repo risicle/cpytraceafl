@@ -133,6 +133,7 @@ def install_rewriter(selector=None):
     import _frozen_importlib_external
     import builtins
     from sys import version_info
+    from ast import PyCF_ONLY_AST
 
     if selector is None:
         afl_inst_ratio = os.environ.get("AFL_INST_RATIO")
@@ -150,7 +151,11 @@ def install_rewriter(selector=None):
 
     @functools.wraps(original_compile)
     def rewriting_compile(*args, **kwargs):
-        return rewrite(version_info, dis, random.Random, original_compile(*args, **kwargs), selector)
+        flags = (len(args) >= 4 and args[3]) or kwargs.get("flags") or 0
+        original_retval = original_compile(*args, **kwargs)
+        if flags & PyCF_ONLY_AST:
+            return original_retval
+        return rewrite(version_info, dis, random.Random, original_retval, selector)
     builtins.compile = rewriting_compile
 
     original_compile_bytecode = _frozen_importlib_external._compile_bytecode
