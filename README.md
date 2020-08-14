@@ -93,6 +93,7 @@ as a black box that will act as a barrier to path exploration.
    [CVE-2020-10994](https://nvd.nist.gov/vuln/detail/CVE-2020-10994),
    [CVE-2020-11538](https://nvd.nist.gov/vuln/detail/CVE-2020-11538).
  - bsdiff4: [CVE-2020-15904](https://nvd.nist.gov/vuln/detail/CVE-2020-15904)
+ - asyncpg: [CVE-2020-17446](https://nvd.nist.gov/vuln/detail/CVE-2020-17446)
 
 ## Q & A
 
