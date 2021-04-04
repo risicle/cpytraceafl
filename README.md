@@ -153,3 +153,17 @@ funny compilers.
 You may be interested in building c/c++/cython-based modules or their underlying native
 libraries with instrumentation if that's what you're trying to fuzz, but I suspect using
 a natively-instrumented _cpython_ would be quite complicated and extremely slow.
+
+### Do you have any tips on detecting memory errors in cpython extensions?
+
+I have tended to use `tcmalloc`'s debugging modes with `TCMALLOC_PAGE_FENCE` and
+`TCMALLOC_PAGE_FENCE_NEVER_RECLAIM` enabled. In fact I have
+[a fork](https://github.com/gperftools/gperftools/compare/master...risicle:ris-extras)
+of `gperftools` containing some additional `tcmalloc` hacks I've found useful.
+
+One problem with this of course is that much of cpython''s  memory is allocated
+using its own memory pool allocator, which is largely invisible to the `malloc`
+implementation. So I've also got
+[a patch for cpython](https://gist.github.com/risicle/12c6f20518807699d816b8cb4389b840)
+which adds a very basic canary mechanism to its pool allocator (at the slight expense of
+memory efficiency).
